@@ -1,0 +1,7 @@
+/**/*.pyc
+/**/*.txt
+/kitti_format/
+/**/*.so
+/exp
+/.vscode
+/data

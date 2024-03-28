@@ -1,16 +1,13 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import torch
 import numpy as np
 
-from models.losses import FocalLoss, RegL1Loss, RegLoss, RegWeightedL1Loss, BinRotLoss,Position_loss
-from models.decode import car_pose_decode
-from models.utils import _sigmoid
-from utils.debugger import Debugger
-from utils.post_process import car_pose_post_process
+from lib.models.losses import FocalLoss, RegL1Loss, RegLoss, RegWeightedL1Loss, BinRotLoss,Position_loss
+from lib.models.decode import car_pose_decode
+from lib.models.utils import _sigmoid
+from lib.utils.debugger import Debugger
+from lib.utils.post_process import car_pose_post_process
 from .base_trainer import BaseTrainer
+
 class CarPoseLoss(torch.nn.Module):
     def __init__(self, opt):
         super(CarPoseLoss, self).__init__()

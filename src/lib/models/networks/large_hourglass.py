@@ -1,15 +1,3 @@
-# ------------------------------------------------------------------------------
-# This code is base on 
-# CornerNet (https://github.com/princeton-vl/CornerNet)
-# Copyright (c) 2018, University of Michigan
-# Licensed under the BSD 3-Clause License
-# ------------------------------------------------------------------------------
-
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -92,9 +80,6 @@ class MergeUp(nn.Module):
 
 def make_merge_layer(dim):
     return MergeUp()
-
-# def make_pool_layer(dim):
-#     return nn.MaxPool2d(kernel_size=2, stride=2)
 
 def make_pool_layer(dim):
     return nn.Sequential()
@@ -296,5 +281,5 @@ class HourglassNet(exkp):
         )
 
 def get_large_hourglass_net(num_layers, heads, head_conv):
-  model = HourglassNet(heads, 2)
-  return model
+    model = HourglassNet(heads, 2)
+    return model

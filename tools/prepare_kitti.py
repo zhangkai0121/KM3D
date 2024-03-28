@@ -2,20 +2,19 @@
 功能：KITTI数据集标签格式转换
 '''
 
-
-import pickle
+import sys
+from pathlib import Path
 import json
 import numpy as np
 import cv2
-import sys
+from tqdm import tqdm
 sys.path.append('./src')
 
 
-DATA_PATH = './kitti_format/data/kitti/'
+DATA_PATH = './data/kitti/'
 import os
 import math
-from lib.utils.ddd_utils import compute_box_3d, project_to_image, project_to_image3,alpha2rot_y
-from lib.utils.ddd_utils import draw_box_3d, unproject_2d_to_3d
+from lib.utils.ddd_utils import compute_box_3d, project_to_image
 
 '''
 #Values    Name      Description
@@ -52,96 +51,91 @@ def read_clib(calib_path):
             calib = calib.reshape(3, 4)
             return calib
 
-def read_clib0(calib_path):
-    f = open(calib_path, 'r')
-    for i, line in enumerate(f):
-        if i == 0:
-            calib = np.array(line[:-1].split(' ')[1:], dtype=np.float32)
-            calib = calib.reshape(3, 4)
-            return calib
+def main():
+    cats = ['Car', 'Pedestrian', 'Cyclist', 'Van', 'Truck', 'Person_sitting',
+            'Tram', 'Misc', 'DontCare']
+    det_cats=['Car', 'Pedestrian', 'Cyclist']
+
+    cat_ids = {cat: i + 1 for i, cat in enumerate(cats)}
+
+    cat_info = []
+    for i, cat in enumerate(cats):
+        cat_info.append({'name': cat, 'id': i + 1})
+
+    image_set_path = Path(DATA_PATH) / 'image'
+    ann_dir = Path(DATA_PATH) / 'label'
+    calib_dir = Path(DATA_PATH) / 'calib'
+    splits = ['train','val']
+
+    for split in splits:
+        ret = {'images': [], 'annotations': [], "categories": cat_info}
+        image_set = open(DATA_PATH + '{}.txt'.format(split), 'r')
         
-cats = ['Car', 'Pedestrian', 'Cyclist', 'Van', 'Truck', 'Person_sitting',
-        'Tram', 'Misc', 'DontCare']
-det_cats=['Car', 'Pedestrian', 'Cyclist']
+        for img_name in tqdm(image_set):
+            if img_name[-1] == '\n':
+                img_name = img_name[:-1]
+            image_id = int(img_name)
+            calib_path = calib_dir / f'{img_name}.txt'
 
-cat_ids = {cat: i + 1 for i, cat in enumerate(cats)}
-# cat_info = [{"name": "pedestrian", "id": 1}, {"name": "vehicle", "id": 2}]
-
-cat_info = []
-for i, cat in enumerate(cats):
-    cat_info.append({'name': cat, 'id': i + 1})
-
-
-image_set_path = os.path.join(DATA_PATH,"image/")
-ann_dir = os.path.join(DATA_PATH,"label/")
-calib_dir = os.path.join(DATA_PATH,"calib/")
-splits = ['train','val']
-
-for split in splits:
-    ret = {'images': [], 'annotations': [], "categories": cat_info}
-    image_set = open(DATA_PATH + '{}.txt'.format(split), 'r')
-    image_to_id = {}
-    for line in image_set:
-        if line[-1] == '\n':
-            line = line[:-1]
-        image_id = int(line)
-        calib_path = calib_dir  + '{}.txt'.format(line)
-
-        calib0 = read_clib0(calib_path)
-        calib = read_clib(calib_path)
+            
+            calib = read_clib(calib_path)
+            
+            image_info = {'file_name': f'{img_name}.png', 'id': int(image_id), 'calib': calib.tolist()}
         
-        image_info = {'file_name': '{}.png'.format(line), 'id': int(image_id), 'calib': calib.tolist()}
-    
-        ret['images'].append(image_info)
+            ret['images'].append(image_info)
 
-        ann_path = ann_dir + '{}.txt'.format(line)
+            ann_path = ann_dir / f'{img_name}.txt'
 
-        anns = open(ann_path, 'r')
-        for ann_ind, txt in enumerate(anns):
-            tmp = txt[:-1].split(' ')
-            cat_id = cat_ids[tmp[0]]
-            truncated = int(float(tmp[1]))
-            occluded = int(tmp[2])
-            alpha = float(tmp[3])
-            dim = [float(tmp[8]), float(tmp[9]), float(tmp[10])]
-            location = [float(tmp[11]), float(tmp[12]), float(tmp[13])]
-            rotation_y = float(tmp[14])
-            num_keypoints = 0
-            box_2d_as_point=[0]*27
-            bbox=[0.,0.,0.,0.]
-            calib_list = np.reshape(calib, (12)).tolist()
-            if tmp[0] in det_cats:
-                image = cv2.imread(os.path.join(image_set_path, image_info['file_name']))
-                bbox = [float(tmp[4]), float(tmp[5]), float(tmp[6]), float(tmp[7])]
-                box_3d = compute_box_3d(dim, location, rotation_y)
-                box_2d_as_point,vis_num,pts_center = project_to_image(box_3d, calib,image.shape)
-                box_2d_as_point=np.reshape(box_2d_as_point,(1,27))
-                #box_2d_as_point=box_2d_as_point.astype(np.int)
-                box_2d_as_point=box_2d_as_point.tolist()[0]
-                num_keypoints=vis_num
+            anns = open(ann_path, 'r')
+            for ann in anns:
+                ann = ann[:-1].split(' ')
 
-                off_set=(calib[0,3]-calib0[0,3])/calib[0,0]
-                location[0] += off_set      ###################################################confuse
-                alpha = rotation_y - math.atan2(pts_center[0, 0] - calib[0, 2], calib[0, 0])
-                ann = {'segmentation': [[0,0,0,0,0,0]],
-                        'num_keypoints':num_keypoints,
-                        'area':1,
-                        'iscrowd': 0,
-                        'keypoints': box_2d_as_point,
-                        'image_id': image_id,
-                        'bbox': _bbox_to_coco_bbox(bbox),
-                        'category_id': cat_id,
-                        'id': int(len(ret['annotations']) + 1),
-                        'dim': dim,
-                        'rotation_y': rotation_y,
-                        'alpha': alpha,
-                        'location':location,
-                        'calib':calib_list,
-                        }
-                ret['annotations'].append(ann)
-    print("# images: ", len(ret['images']))
-    print("# annotations: ", len(ret['annotations']))
-    
-    out_path = '{}annotations/kitti_{}.json'.format(DATA_PATH, split)
-    json.dump(ret, open(out_path, 'w'))
+                if ann[0] in det_cats:
+                    
+                    cat_id = cat_ids[ann[0]]    # 类别ID
+                    alpha = float(ann[3])       
+                    dim = [float(ann[8]), float(ann[9]), float(ann[10])]   # 高、宽、长
+                    location = [float(ann[11]) + 0.06, float(ann[12]), float(ann[13])]
+                    
+                    rotation_y = float(ann[14])
+                    
+                    calib_list = np.reshape(calib, (12)).tolist()
+                    image = cv2.imread(str(Path(image_set_path) / image_info['file_name']))
+                    print(image_info['file_name'])
+                    print(image.shape)
+                    bbox = [float(ann[4]), float(ann[5]), float(ann[6]), float(ann[7])]
+                    
+                    box_3d = compute_box_3d(dim, location, rotation_y)     # box_3d形状：9*3
+                    box_2d_as_point, num_keypoints, pts_center = project_to_image(box_3d, calib, image.shape)
+                    box_2d_as_point = np.reshape(box_2d_as_point, (1,27))
+                   
+                    box_2d_as_point=box_2d_as_point.tolist()[0]
+                    
+                 
 
+              
+                    alpha = rotation_y - math.atan2(pts_center[0, 0] - calib[0, 2], calib[0, 0])
+                    ann = {
+                            'num_keypoints':num_keypoints,
+                            'area':1,
+                            'iscrowd': 0,
+                            'keypoints': box_2d_as_point,
+                            'image_id': image_id,
+                            'bbox': _bbox_to_coco_bbox(bbox),
+                            'category_id': cat_id,
+                            'id': int(len(ret['annotations']) + 1),
+                            'dim': dim,
+                            'rotation_y': rotation_y,
+                            'alpha': alpha,
+                            'location':location,
+                            'calib':calib_list}
+                    ret['annotations'].append(ann)
+        print("# images: ", len(ret['images']))
+        print("# annotations: ", len(ret['annotations']))
+        
+        out_path = '{}annotations/kitti_{}.json'.format(DATA_PATH, split)
+        json.dump(ret, open(out_path, 'w'))
+
+
+if __name__ == '__main__':
+    main()

@@ -1,19 +1,9 @@
-# ------------------------------------------------------------------------------
-# Portions of this code are from
-# CornerNet (https://github.com/princeton-vl/CornerNet)
-# Copyright (c) 2018, University of Michigan
-# Licensed under the BSD 3-Clause License
-# ------------------------------------------------------------------------------
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import torch
 import torch.nn as nn
 from .utils import _transpose_and_gather_feat
 import torch.nn.functional as F
 import iou3d_cuda
-from utils import kitti_utils_torch as kitti_utils
+from lib.utils import kitti_utils_torch as kitti_utils
 import time
 import numpy as np
 def boxes_iou_bev(boxes_a, boxes_b):
@@ -437,7 +427,8 @@ class Position_loss(nn.Module):
         dim_mask = dim<0
         dim = torch.clamp(dim, 0 , 10)
         dim_mask_score_mask = torch.sum(dim_mask, dim=2)
-        dim_mask_score_mask = 1 - (dim_mask_score_mask > 0)
+        # dim_mask_score_mask = 1 - (dim_mask_score_mask > 0)
+        dim_mask_score_mask = ~(dim_mask_score_mask > 0)
         dim_mask_score_mask = dim_mask_score_mask.float()
 
         box_pred = torch.cat((pinv, dim, rot_y), dim=2).detach()

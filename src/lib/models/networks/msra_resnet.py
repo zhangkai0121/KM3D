@@ -1,14 +1,3 @@
-# ------------------------------------------------------------------------------
-# Copyright (c) Microsoft
-# Licensed under the MIT License.
-# Written by Bin Xiao (Bin.Xiao@microsoft.com)
-# Modified by Xingyi Zhou
-# ------------------------------------------------------------------------------
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import os
 
 import torch
@@ -109,13 +98,12 @@ class Bottleneck(nn.Module):
 class PoseResNet(nn.Module):
 
     def __init__(self, block, layers, heads, head_conv, **kwargs):
+        
+        super(PoseResNet, self).__init__()
         self.inplanes = 64
         self.deconv_with_bias = False
         self.heads = heads
-
-        super(PoseResNet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -223,15 +211,11 @@ class PoseResNet(nn.Module):
 
         x = self.deconv_layers(x)
         ret = {}
-        # a = self.__getattr__(head)[0](x)
-        # a = self.__getattr__(head)[1](a)
-        #self.draw_features(16, 16, x.cpu().numpy(), './exp/{}.png'.format('sd'))
         for head in self.heads:
             ret[head] = self.__getattr__(head)(x)
         return [ret]
 
     def draw_features(self,width, height, x, savename):
-
         fig = plt.figure(figsize=(40, 16))
         fig.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95, wspace=0.00001, hspace=0.00003)
         for i in range(width * height):
@@ -251,34 +235,25 @@ class PoseResNet(nn.Module):
         plt.close()
     def init_weights(self, num_layers, pretrained=True):
         if pretrained:
-            # print('=> init resnet deconv weights from normal distribution')
             for _, m in self.deconv_layers.named_modules():
                 if isinstance(m, nn.ConvTranspose2d):
-                    # print('=> init {}.weight as normal(0, 0.001)'.format(name))
-                    # print('=> init {}.bias as 0'.format(name))
                     nn.init.normal_(m.weight, std=0.001)
                     if self.deconv_with_bias:
                         nn.init.constant_(m.bias, 0)
                 elif isinstance(m, nn.BatchNorm2d):
-                    # print('=> init {}.weight as 1'.format(name))
-                    # print('=> init {}.bias as 0'.format(name))
                     nn.init.constant_(m.weight, 1)
                     nn.init.constant_(m.bias, 0)
-            # print('=> init final conv weights from normal distribution')
             for head in self.heads:
-              final_layer = self.__getattr__(head)
-              for i, m in enumerate(final_layer.modules()):
-                  if isinstance(m, nn.Conv2d):
-                      # nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-                      # print('=> init {}.weight as normal(0, 0.001)'.format(name))
-                      # print('=> init {}.bias as 0'.format(name))
-                      if m.weight.shape[0] == self.heads[head]:
-                          if 'hm' in head:
-                              nn.init.constant_(m.bias, -2.19)
-                          else:
-                              nn.init.normal_(m.weight, std=0.001)
-                              nn.init.constant_(m.bias, 0)
-            #pretrained_state_dict = torch.load(pretrained)
+                final_layer = self.__getattr__(head)
+                for i, m in enumerate(final_layer.modules()):
+                    if isinstance(m, nn.Conv2d):
+                        if m.weight.shape[0] == self.heads[head]:
+                            if 'hm' in head:
+                                nn.init.constant_(m.bias, -2.19)
+                            else:
+                                nn.init.normal_(m.weight, std=0.001)
+                                nn.init.constant_(m.bias, 0)
+            
             url = model_urls['resnet{}'.format(num_layers)]
             pretrained_state_dict = model_zoo.load_url(url)
             print('=> loading pretrained model {}'.format(url))
@@ -297,8 +272,8 @@ resnet_spec = {18: (BasicBlock, [2, 2, 2, 2]),
 
 
 def get_pose_net(num_layers, heads, head_conv):
-  block_class, layers = resnet_spec[num_layers]
+    block_class, layers = resnet_spec[num_layers]
 
-  model = PoseResNet(block_class, layers, heads, head_conv=head_conv)
-  model.init_weights(num_layers, pretrained=True)
-  return model
+    model = PoseResNet(block_class, layers, heads, head_conv=head_conv)
+    model.init_weights(num_layers, pretrained=True)
+    return model

@@ -1,9 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import _init_paths
-
 import os
 from detectors.car_pose import CarPoseDetector
 from opts import opts

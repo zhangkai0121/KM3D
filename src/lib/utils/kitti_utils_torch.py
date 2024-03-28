@@ -1,16 +1,8 @@
 import numpy as np
 from scipy.spatial import Delaunay
 import scipy
-#import lib.utils.object3d as object3d
+
 import torch
-
-
-def get_objects_from_label(label_file):
-    with open(label_file, 'r') as f:
-        lines = f.readlines()
-    objects = [object3d.Object3d(line) for line in lines]
-    return objects
-
 
 def dist_to_plane(plane, points):
     """
